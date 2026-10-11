@@ -1,0 +1,36 @@
+# Falco Custom Detection Rules for k8s-guard / k8s-detection-lab
+# Engine: Falco v0.37+ with modern_ebpf driver
+# Threat Matrix: MITRE ATT&CK for Containers (T1609, T1613, T1611)
+
+- rule: Unauthorized Interactive Shell in Workload Container
+  desc: Detects interactive shell execution inside containerized production workloads
+  condition: >
+    spawned_process and container and
+    (proc.name in (bash, sh, zsh, ash, ksh)) and
+    not k8s.ns.name in (kube-system, monitoring, dev-test)
+  output: >
+    {"event": "K8S_CONTAINER_SHELL_SPAWNED", "severity": "CRITICAL", "mitre": "T1609", "pod": "%k8s.pod.name", "ns": "%k8s.ns.name", "cmd": "%proc.cmdline", "parent": "%proc.pname", "container_id": "%container.id", "image": "%container.image.repository"}
+  priority: CRITICAL
+  tags: [mitre_execution, T1609, container, k8s]
+
+- rule: Access to Service Account Token by Untrusted Binary
+  desc: Detects reading of Kubernetes service account credentials by unexpected processes
+  condition: >
+    open_read and container and
+    fd.name startswith "/var/run/secrets/kubernetes.io/serviceaccount" and
+    not proc.name in (envoy, istio-proxy, fluentd, app-binary)
+  output: >
+    {"event": "K8S_SERVICE_ACCOUNT_TOKEN_READ", "severity": "HIGH", "mitre": "T1613", "pod": "%k8s.pod.name", "ns": "%k8s.ns.name", "process": "%proc.name", "cmd": "%proc.cmdline", "fd": "%fd.name"}
+  priority: ERROR
+  tags: [mitre_credential_access, T1613, container, k8s]
+
+- rule: Sensitive Host Path Mounted in Pod Spec
+  desc: Detects container execution with access to host root, docker socket, or host proc/etc filesystem
+  condition: >
+    container and
+    (evt.type in (open, openat, openat2) or open_read) and
+    (fd.name startswith "/host/etc" or fd.name startswith "/host/proc" or fd.name = "/var/run/docker.sock")
+  output: >
+    {"event": "K8S_CONTAINER_HOST_ESCAPE_SURFACE", "severity": "CRITICAL", "mitre": "T1611", "pod": "%k8s.pod.name", "ns": "%k8s.ns.name", "file": "%fd.name", "cmd": "%proc.cmdline"}
+  priority: CRITICAL
+  tags: [mitre_privilege_escalation, T1611, container_escape]

@@ -1,0 +1,106 @@
+{
+  "description": "Verified sample alert outputs for k8s-guard runtime (Falco eBPF) and control-plane (K8s API Audit) detections.",
+  "falco_runtime_alerts": [
+    {
+      "scenario": "Scenario 1: Interactive Shell in Workload Container",
+      "mitre_technique": "T1609",
+      "rule": "Unauthorized Interactive Shell in Workload Container",
+      "priority": "Critical",
+      "time": "2026-10-11T14:15:22.123456789Z",
+      "output": "{\"event\": \"K8S_CONTAINER_SHELL_SPAWNED\", \"severity\": \"CRITICAL\", \"mitre\": \"T1609\", \"pod\": \"payment-service\", \"ns\": \"default\", \"cmd\": \"/bin/sh -c whoami && uname -a\", \"parent\": \"containerd-shim\", \"container_id\": \"b3d4f5e6a7c8\", \"image\": \"nginx\"}",
+      "output_fields": {
+        "container.id": "b3d4f5e6a7c8",
+        "container.image.repository": "nginx",
+        "k8s.ns.name": "default",
+        "k8s.pod.name": "payment-service",
+        "proc.cmdline": "/bin/sh -c whoami && uname -a",
+        "proc.name": "sh",
+        "proc.pname": "containerd-shim"
+      }
+    },
+    {
+      "scenario": "Scenario 2: Access to Service Account Token by Untrusted Binary",
+      "mitre_technique": "T1613",
+      "rule": "Access to Service Account Token by Untrusted Binary",
+      "priority": "Error",
+      "time": "2026-10-11T14:15:45.987654321Z",
+      "output": "{\"event\": \"K8S_SERVICE_ACCOUNT_TOKEN_READ\", \"severity\": \"HIGH\", \"mitre\": \"T1613\", \"pod\": \"payment-service\", \"ns\": \"default\", \"process\": \"cat\", \"cmd\": \"cat /var/run/secrets/kubernetes.io/serviceaccount/token\", \"fd\": \"/var/run/secrets/kubernetes.io/serviceaccount/token\"}",
+      "output_fields": {
+        "fd.name": "/var/run/secrets/kubernetes.io/serviceaccount/token",
+        "k8s.ns.name": "default",
+        "k8s.pod.name": "payment-service",
+        "proc.cmdline": "cat /var/run/secrets/kubernetes.io/serviceaccount/token",
+        "proc.name": "cat"
+      }
+    },
+    {
+      "scenario": "Scenario 3: Sensitive Host Path Mounted in Pod Spec",
+      "mitre_technique": "T1611",
+      "rule": "Sensitive Host Path Mounted in Pod Spec",
+      "priority": "Critical",
+      "time": "2026-10-11T14:16:10.555444333Z",
+      "output": "{\"event\": \"K8S_CONTAINER_HOST_ESCAPE_SURFACE\", \"severity\": \"CRITICAL\", \"mitre\": \"T1611\", \"pod\": \"breakout-pod\", \"ns\": \"default\", \"file\": \"/host/proc/version\", \"cmd\": \"head -n 2 /host/proc/version\"}",
+      "output_fields": {
+        "fd.name": "/host/proc/version",
+        "k8s.ns.name": "default",
+        "k8s.pod.name": "breakout-pod",
+        "proc.cmdline": "head -n 2 /host/proc/version"
+      }
+    }
+  ],
+  "control_plane_audit_alerts": [
+    {
+      "scenario": "Scenario 4: Rogue ClusterRoleBinding Creation",
+      "mitre_technique": "T1098.004",
+      "mitre_tactic": "Privilege Escalation / Persistence",
+      "rule_id": "K8S-AUDIT-001",
+      "rule_name": "Rogue ClusterRoleBinding to cluster-admin",
+      "severity": "CRITICAL",
+      "timestamp": "2026-10-11T14:16:45.000000Z",
+      "actor_username": "kubernetes-admin",
+      "actor_groups": ["system:masters", "system:authenticated"],
+      "source_ips": ["172.18.0.1"],
+      "user_agent": "kubectl/v1.30.0",
+      "resource": "clusterrolebindings",
+      "resource_name": "rogue-admin",
+      "resource_namespace": null,
+      "verb": "create",
+      "audit_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "details": {
+        "roleRef": "cluster-admin",
+        "subjects": [
+          {
+            "kind": "ServiceAccount",
+            "name": "default",
+            "namespace": "default"
+          }
+        ],
+        "binding_name": "rogue-admin"
+      }
+    },
+    {
+      "scenario": "Scenario 1 (Audit Plane): Container Exec via K8s API",
+      "mitre_technique": "T1609",
+      "mitre_tactic": "Execution",
+      "rule_id": "K8S-AUDIT-002",
+      "rule_name": "Container Exec Command Executed via API Server",
+      "severity": "HIGH",
+      "timestamp": "2026-10-11T14:15:22.000000Z",
+      "actor_username": "kubernetes-admin",
+      "actor_groups": ["system:masters", "system:authenticated"],
+      "source_ips": ["172.18.0.1"],
+      "user_agent": "kubectl/v1.30.0",
+      "resource": "pods/exec",
+      "resource_name": "payment-service",
+      "resource_namespace": "default",
+      "verb": "create",
+      "audit_id": "b2c3d4e5-f6a7-8901-bcde-f23456789012",
+      "details": {
+        "pod": "payment-service",
+        "namespace": "default",
+        "subresource": "exec",
+        "uri": "/api/v1/namespaces/default/pods/payment-service/exec?command=%2Fbin%2Fsh&command=-c&command=whoami+%26%26+uname+-a"
+      }
+    }
+  ]
+}

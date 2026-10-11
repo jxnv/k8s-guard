@@ -1,0 +1,42 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: breakout-pod
+  namespace: default
+  labels:
+    app: breakout-simulation
+    mitre: T1611
+spec:
+  restartPolicy: Never
+  containers:
+    - name: escape-tester
+      image: busybox:1.36
+      command: ["/bin/sh", "-c"]
+      args:
+        - |
+          echo "[*] Breakout pod initialized. Simulating host mount inspection...";
+          # Trigger Falco rule by opening files under mounted sensitive host paths
+          if [ -d /host/proc ]; then
+            head -n 1 /host/proc/version 2>/dev/null || true
+          fi
+          if [ -d /host/etc ]; then
+            head -n 1 /host/etc/hostname 2>/dev/null || true
+          fi
+          echo "[+] Host inspection triggered. Sleeping to allow telemetry capture...";
+          sleep 3600
+      volumeMounts:
+        - name: host-proc
+          mountPath: /host/proc
+          readOnly: true
+        - name: host-etc
+          mountPath: /host/etc
+          readOnly: true
+  volumes:
+    - name: host-proc
+      hostPath:
+        path: /proc
+        type: Directory
+    - name: host-etc
+      hostPath:
+        path: /etc
+        type: Directory

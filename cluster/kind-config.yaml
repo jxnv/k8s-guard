@@ -1,0 +1,36 @@
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: k8s-detection-lab
+nodes:
+  - role: control-plane
+    image: kindest/node:v1.30.0
+    kubeadmConfigPatches:
+      - |
+        kind: ClusterConfiguration
+        apiServer:
+          extraArgs:
+            audit-log-path: /var/log/kubernetes/kube-audit.log
+            audit-policy-file: /etc/kubernetes/audit-policy.yaml
+            audit-log-maxage: "1"
+            audit-log-maxbackup: "1"
+            audit-log-maxsize: "50"
+          extraVolumes:
+            - name: audit-policy
+              hostPath: /etc/kubernetes/audit-policy.yaml
+              mountPath: /etc/kubernetes/audit-policy.yaml
+              readOnly: true
+              pathType: File
+            - name: audit-logs
+              hostPath: /var/log/kubernetes
+              mountPath: /var/log/kubernetes
+              readOnly: false
+              pathType: DirectoryOrCreate
+    # extraMounts maps host files into the Kind container node.
+    # Note: Kind schema requires 'containerPath', distinct from kubeadm's 'mountPath'.
+    extraMounts:
+      - hostPath: ./cluster/audit-policy.yaml
+        containerPath: /etc/kubernetes/audit-policy.yaml
+        readOnly: true
+      - hostPath: ./logs/audit
+        containerPath: /var/log/kubernetes
+        readOnly: false
